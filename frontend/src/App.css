@@ -1,0 +1,84 @@
+#root {
+  width: 100%;
+}
+
+.app {
+  min-height: 100vh;
+  background-color: #f4f4f4;
+  text-align: center;
+}
+
+header {
+  background-color: #1f2937;
+  color: white;
+  padding: 25px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 40px;
+}
+
+header p {
+  margin: 5px 0 0;
+  font-size: 18px;
+}
+
+main {
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.game-info {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.game-info h2 {
+  margin-top: 0;
+}
+
+.score {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+.map-placeholder {
+  height: 450px;
+  background-color: #d1d5db;
+  border-radius: 10px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.map-placeholder h2 {
+  font-size: 30px;
+}
+
+.question {
+  background-color: white;
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 10px;
+}
+
+button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #1d4ed8;
+}
