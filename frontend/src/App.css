@@ -1,3 +1,9 @@
+body {
+  color: black;
+  background-color: #f4f4f4;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 #root {
   width: 100%;
 }
@@ -32,9 +38,15 @@ main {
 
 .game-info {
   background-color: white;
+  color: black;
   padding: 20px;
   border-radius: 10px;
   margin-bottom: 20px;
+}
+
+.game-info h2,
+.game-info p {
+  color: black;
 }
 
 .game-info h2 {
@@ -47,26 +59,23 @@ main {
   margin-top: 15px;
 }
 
-.map-placeholder {
+.map-container {
   height: 450px;
-  background-color: #d1d5db;
   border-radius: 10px;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.map-placeholder h2 {
-  font-size: 30px;
+  overflow: hidden;
 }
 
 .question {
   background-color: white;
+  color: black;
   padding: 20px;
   margin-top: 20px;
   border-radius: 10px;
+}
+
+.question h2,
+.question p {
+  color: black;
 }
 
 button {
@@ -81,4 +90,9 @@ button {
 
 button:hover {
   background-color: #1d4ed8;
+}
+
+.feedback {
+  color: black;
+  font-weight: bold;
 }
