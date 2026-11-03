@@ -65,7 +65,7 @@ main {
   overflow: hidden;
 }
 
-.question {
+.continent-selection {
   background-color: white;
   color: black;
   padding: 20px;
@@ -73,9 +73,16 @@ main {
   border-radius: 10px;
 }
 
-.question h2,
-.question p {
+.continent-selection h2 {
+  margin-top: 0;
   color: black;
+}
+
+.continent-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
 }
 
 button {
@@ -92,7 +99,46 @@ button:hover {
   background-color: #1d4ed8;
 }
 
+.question {
+  background-color: white;
+  color: black;
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 10px;
+}
+
+.question h2,
+.question p {
+  color: black;
+}
+
+.quiz-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.home-button {
+  background-color: #64748b;
+}
+
+.home-button:hover {
+  background-color: #475569;
+}
+
 .feedback {
   color: black;
   font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  .continent-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  main {
+    padding: 12px;
+  }
 }
