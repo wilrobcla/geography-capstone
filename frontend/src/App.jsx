@@ -144,6 +144,10 @@ function App() {
   const [currentCountry, setCurrentCountry] = useState(null)
   const [remainingCountries, setRemainingCountries] = useState([])
   const [correctCountries, setCorrectCountries] = useState([])
+
+  // Tracks learned countries across quizzes during this application session.
+  const [learnedCountries, setLearnedCountries] = useState([])
+
   const [incorrectCountry, setIncorrectCountry] = useState(null)
   const [skippedCountry, setSkippedCountry] = useState(null)
   const [awaitingAcknowledgment, setAwaitingAcknowledgment] = useState(false)
@@ -264,6 +268,16 @@ function App() {
       ]
 
       setCorrectCountries(updatedCorrectCountries)
+
+      // Save the country as learned for the homepage map.
+      setLearnedCountries((previousCountries) => {
+        if (previousCountries.includes(countryName)) {
+          return previousCountries
+        }
+
+        return [...previousCountries, countryName]
+      })
+
       setIncorrectCountry(null)
       setScore((previousScore) => previousScore + 1)
 
@@ -344,7 +358,7 @@ function App() {
                 <WorldMap
                   countries={countries}
                   currentCountry={null}
-                  correctCountries={[]}
+                  correctCountries={learnedCountries}
                   incorrectCountry={null}
                   skippedCountry={null}
                   selectedContinent=""
