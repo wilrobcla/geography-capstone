@@ -1,8 +1,8 @@
-
 import { useEffect, useState } from 'react'
 import { MapContainer, GeoJSON } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
+import { loadUserProgress, saveQuizAttempt } from './api';
 
 const continents = [
   'North America',
@@ -12,6 +12,14 @@ const continents = [
   'Asia',
   'Oceania',
 ]
+
+// Maps interval days to a green opacity (0.1 to 0.95)
+const getGreenOpacity = (interval) => {
+  if (!interval || interval <= 0) return 0.1; 
+  const maxInterval = 30; 
+  const opacity = 0.2 + (interval / maxInterval) * 0.75;
+  return Math.min(0.95, opacity);
+}
 
 // Determines which continent a location belongs to.
 function getFeatureContinent(feature) {
@@ -46,18 +54,38 @@ function getRandomCountry(countryList) {
 function WorldMap({
   countries,
   currentCountry,
-  correctCountries,
+  correctCountries = [],
   incorrectCountry,
   skippedCountry,
   selectedContinent,
   interactive,
   awaitingAcknowledgment,
   onCountryClick,
+  userProgressMap = {},
 }) {
   const getCountryStyle = (feature) => {
+    if (!feature || !feature.properties) {
+      return { color: '#333', weight: 1, fillColor: '#9ca3af', fillOpacity: 0.8 }
+    }
+
     const countryName = feature.properties.ADMIN
     const featureContinent = getFeatureContinent(feature)
 
+    const regionCode = (feature.properties.ISO_A2 || '').toUpperCase()
+    const regionCode3 = (feature.properties.ISO_A3 || '').toUpperCase()
+    const adminName = feature.properties.ADMIN
+
+    // Check progress map against ISO_A2, ISO_A3, OR full Admin name case-insensitively
+    const masteryRecord = 
+      userProgressMap[regionCode] || 
+      userProgressMap[regionCode3] || 
+      userProgressMap[adminName] || 
+      userProgressMap[adminName?.toUpperCase()] ||
+      null
+
+    const interval = masteryRecord ? masteryRecord.interval : 0
+
+    // Non-selected continents stay dimmed during quiz mode
     if (interactive && featureContinent !== selectedContinent) {
       return {
         color: '#475569',
@@ -67,7 +95,7 @@ function WorldMap({
       }
     }
 
-    // Correctly identified countries stay green.
+    // 1. Correctly identified countries in current session turn bright green
     if (correctCountries.includes(countryName)) {
       return {
         color: '#166534',
@@ -77,7 +105,7 @@ function WorldMap({
       }
     }
 
-    // A skipped country is temporarily orange.
+    // 2. Skipped countries turn temporary orange
     if (skippedCountry === countryName) {
       return {
         color: '#c2410c',
@@ -87,7 +115,7 @@ function WorldMap({
       }
     }
 
-    // The most recent incorrect guess is red.
+    // 3. Incorrect guesses turn red
     if (incorrectCountry === countryName) {
       return {
         color: '#991b1b',
@@ -97,6 +125,17 @@ function WorldMap({
       }
     }
 
+    // 4. PostgreSQL SM-2 heatmap for previously studied regions
+    if (interval && interval > 0) {
+      return {
+        color: '#166534',
+        weight: 1,
+        fillColor: '#22c55e',
+        fillOpacity: getGreenOpacity(interval),
+      }
+    }
+
+    // 5. Default unstudied countries stay grey
     return {
       color: '#333',
       weight: 1,
@@ -122,7 +161,7 @@ function WorldMap({
     >
       {countries && (
         <GeoJSON
-          key={`${selectedContinent}-${currentCountry}-${correctCountries.length}-${incorrectCountry}-${skippedCountry}`}
+          key={`${selectedContinent}-${currentCountry}-${correctCountries.length}-${incorrectCountry}-${skippedCountry}-${Object.keys(userProgressMap).length}`}
           data={countries}
           style={getCountryStyle}
           onEachFeature={(feature, layer) => {
@@ -130,29 +169,21 @@ function WorldMap({
             const featureContinent = getFeatureContinent(feature)
             const quizLocation = isQuizLocation(feature)
 
-            // Highlight the country when the cursor moves over it.
             layer.on({
               mouseover: () => {
                 const originalStyle = getCountryStyle(feature)
-
                 layer.setStyle({
                   ...originalStyle,
                   color: '#111827',
-                  weight: originalStyle.weight + 1,
-                  fillOpacity: Math.min(
-                    originalStyle.fillOpacity + 0.15,
-                    1
-                  ),
+                  weight: (originalStyle.weight || 1) + 1,
+                  fillOpacity: Math.min((originalStyle.fillOpacity || 0.8) + 0.15, 1),
                 })
               },
-
-              // Restore the original appearance when the cursor leaves.
               mouseout: () => {
                 layer.setStyle(getCountryStyle(feature))
               },
             })
 
-            // Keep the existing quiz click behavior.
             if (
               interactive &&
               !awaitingAcknowledgment &&
@@ -184,6 +215,9 @@ function App() {
   // Tracks learned countries across quizzes during this application session.
   const [learnedCountries, setLearnedCountries] = useState([])
 
+  // State to hold PostgreSQL SM-2 progress records indexed by region code
+  const [userProgressMap, setUserProgressMap] = useState({})
+
   const [incorrectCountry, setIncorrectCountry] = useState(null)
   const [skippedCountry, setSkippedCountry] = useState(null)
   const [awaitingAcknowledgment, setAwaitingAcknowledgment] = useState(false)
@@ -191,6 +225,36 @@ function App() {
   const [score, setScore] = useState(0)
   const [feedback, setFeedback] = useState('')
   const [quizStarted, setQuizStarted] = useState(false)
+
+  const [countryMistakes, setCountryMistakes] = useState({});
+
+  // Fetch user progress from backend safely on load
+  // Replace your existing useEffect for loading user progress in App.jsx with this:
+
+useEffect(() => {
+    loadUserProgress(1)
+      .then((res) => {
+        console.log("RAW BACKEND PROGRESS RESPONSE:", res);
+
+        // Extract the masteryRecords array from the backend response object
+        const rawData = res?.data || res;
+        const records = rawData?.masteryRecords || (Array.isArray(rawData) ? rawData : Object.values(rawData || {}));
+
+        const map = {}
+        records.forEach((item) => {
+          // Include region_code which matches the SQL query output
+          const regionKey = item.region_code || item.region_id || item.country_code || item.code || item.ADMIN;
+          if (regionKey) {
+            map[regionKey] = item
+            map[regionKey.toUpperCase()] = item
+          }
+        })
+
+        console.log("PARSED USER PROGRESS MAP:", map);
+        setUserProgressMap(map)
+      })
+      .catch((err) => console.error("Error loading progress:", err))
+  }, []);
 
   // Separates French territories and combines Guadeloupe's islands.
   const splitFrance = (data) => {
@@ -323,6 +387,7 @@ function App() {
     setFeedback('')
     setScore(0)
     setQuizStarted(false)
+    setCountryMistakes({})
     setCurrentPage('quiz')
   }
 
@@ -336,6 +401,7 @@ function App() {
     setAwaitingAcknowledgment(false)
     setFeedback('')
     setQuizStarted(false)
+    setCountryMistakes({})
   }
 
   // Starts a fresh quiz.
@@ -361,6 +427,7 @@ function App() {
     setScore(0)
     setFeedback('')
     setQuizStarted(true)
+    setCountryMistakes({})
 
     const randomCountry = getRandomCountry(continentCountries)
     setCurrentCountry(randomCountry.properties.ADMIN)
@@ -401,6 +468,27 @@ function App() {
       if (updatedRemainingCountries.length === 0) {
         setCurrentCountry(null)
         setFeedback('Quiz complete! You identified every location.')
+
+        updatedCorrectCountries.forEach((name) => {
+          const countryFeature = countries.features.find(
+          (f) => f.properties.ADMIN === name
+          )
+
+          if (countryFeature) {
+            const regionCode = countryFeature.properties.ISO_A2
+      
+            // Calculate quality score based on mistakes for specific country
+            const mistakes = countryMistakes[name] || 0
+            let quality = 5
+            if (mistakes === 1) quality = 4
+            else if (mistakes === 2) quality = 3
+            else if (mistakes >= 3) quality = 2
+
+            saveQuizAttempt(1, regionCode, quality)
+          }
+        })
+
+        setCountryMistakes({})
         return
       }
 
@@ -411,6 +499,11 @@ function App() {
     } else {
       setIncorrectCountry(countryName)
       setFeedback(`Not quite. You clicked ${countryName}. Try again!`)
+
+      setCountryMistakes((prev) => ({
+        ...prev,
+        [currentCountry]: (prev[currentCountry] || 0) + 1,
+      }))
     }
   }
 
@@ -434,14 +527,17 @@ function App() {
     setIncorrectCountry(null)
     setAwaitingAcknowledgment(true)
     setFeedback(`This is ${currentCountry}. Take a moment to study its location.`)
+
+    setCountryMistakes((prev) => ({
+      ...prev,
+      [currentCountry]: (prev[currentCountry] || 0) + 3,
+    }))
   }
 
   // Acknowledges the skipped country and moves to another question.
   const continueQuiz = () => {
     if (!awaitingAcknowledgment) return
 
-    // Keep the skipped country in the question pool.
-    // Choose another country first if one is available.
     const otherCountries = remainingCountries.filter(
       (feature) => feature.properties.ADMIN !== skippedCountry
     )
@@ -485,6 +581,7 @@ function App() {
                   selectedContinent=""
                   interactive={false}
                   awaitingAcknowledgment={false}
+                  userProgressMap={userProgressMap}
                 />
               )}
             </div>
@@ -529,6 +626,7 @@ function App() {
                   interactive={true}
                   awaitingAcknowledgment={awaitingAcknowledgment}
                   onCountryClick={handleMapClick}
+                  userProgressMap={userProgressMap}
                 />
               )}
             </div>

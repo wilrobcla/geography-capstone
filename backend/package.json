@@ -2,11 +2,11 @@
   "name": "geofill-backend",
   "version": "1.0.0",
   "description": "Backend API and database seed scripts for GeoFill",
-  "main": "src/index.js",
+  "main": "src/models/app.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/models/app.js",
     "seed": "node ../data/seed.js"
-  },
+},
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

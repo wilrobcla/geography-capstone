@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+// Make sure the filename casing matches your file system: regionMastery.js
 const { pool } = require('../backend/src/models/regionMastery');
 
 async function seedDatabase() {
@@ -10,7 +11,7 @@ async function seedDatabase() {
     // 1. Enable PostGIS extension
     await client.query('CREATE EXTENSION IF NOT EXISTS postgis;');
 
-    // 2. Create tables if they don't exist yet
+    // 2. Create tables if they don't exist yet (aligned with regionMastery.js)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -28,11 +29,12 @@ async function seedDatabase() {
       CREATE TABLE IF NOT EXISTS region_mastery (
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users(id) ON DELETE CASCADE,
-        region_code VARCHAR(10) REFERENCES regions(code) ON DELETE CASCADE,
+        region_id INT REFERENCES regions(id) ON DELETE CASCADE,
         interval FLOAT DEFAULT 0,
         easiness_factor FLOAT DEFAULT 2.5,
         repetitions INT DEFAULT 0,
-        last_review TIMESTAMP
+        next_review TIMESTAMP,
+        CONSTRAINT unique_user_region UNIQUE (user_id, region_id)
       );
     `);
 
@@ -43,7 +45,7 @@ async function seedDatabase() {
       ON CONFLICT (id) DO NOTHING;
     `);
 
-    // 4. Read and parse your GeoJSON file (pointing to frontend/data/countries.geojson)
+    // 4. Read and parse your GeoJSON file (pointing to frontend/public/data/countries.geojson)
     const filePath = path.join(__dirname, '../frontend/public/data/countries.geojson');
     const rawData = fs.readFileSync(filePath, 'utf8');
     const geojson = JSON.parse(rawData);
@@ -72,8 +74,6 @@ async function seedDatabase() {
     console.error('Setup failed:', err);
   } finally {
     client.release();
-    // Note: Since pool is shared from your model, you can either let it open 
-    // or close it depending on if your app needs it immediately after.
     await pool.end();
   }
 }
