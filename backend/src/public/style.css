@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geography Game - Account Testing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="container">
+        <h1>Geography Game</h1>
+        <p class="subtitle">Account System Testing</p>
+
+        <section class="panel">
+            <h2>Create Account</h2>
+
+            <form id="registerForm">
+                <input
+                    type="text"
+                    id="registerUsername"
+                    placeholder="Username"
+                    required
+                >
+
+                <input
+                    type="email"
+                    id="registerEmail"
+                    placeholder="Email"
+                    required
+                >
+
+                <input
+                    type="password"
+                    id="registerPassword"
+                    placeholder="Password (minimum 8 characters)"
+                    required
+                >
+
+                <button type="submit">Register</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Login</h2>
+
+            <form id="loginForm">
+                <input
+                    type="email"
+                    id="loginEmail"
+                    placeholder="Email"
+                    required
+                >
+
+                <input
+                    type="password"
+                    id="loginPassword"
+                    placeholder="Password"
+                    required
+                >
+
+                <button type="submit">Login</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Account Status</h2>
+
+            <p id="accountStatus">Checking account status...</p>
+
+            <button id="logoutButton" class="secondary" hidden>
+                Logout
+            </button>
+        </section>
+
+        <p id="message" role="status"></p>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
