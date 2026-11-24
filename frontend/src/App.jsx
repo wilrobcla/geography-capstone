@@ -13,12 +13,20 @@ const continents = [
   'Oceania',
 ]
 
-// Maps interval days to a green opacity (0.1 to 0.95)
-const getGreenOpacity = (interval) => {
-  if (!interval || interval <= 0) return 0.1; 
-  const maxInterval = 30; 
-  const opacity = 0.2 + (interval / maxInterval) * 0.75;
-  return Math.min(0.95, opacity);
+const getHeatmapColor = (interval) => {
+  if (!interval || interval <= 0) {
+    return '#cbd5e1'; 
+  } else if (interval > 14) {
+    return '#22c55e'; 
+  } else if (interval > 7) {
+    return '#84cc16'; 
+  } else if (interval > 3) {
+    return '#eab308'; 
+  } else if (interval > 1) {
+    return '#f97316'; 
+  } else {
+    return '#fa7474'; 
+  }
 }
 
 // Determines which continent a location belongs to.
@@ -126,12 +134,12 @@ function WorldMap({
     }
 
     // 4. PostgreSQL SM-2 heatmap for previously studied regions
-    if (interval && interval > 0) {
+    if (!interactive && interval && interval > 0) {
       return {
         color: '#166534',
         weight: 1,
-        fillColor: '#22c55e',
-        fillOpacity: getGreenOpacity(interval),
+        fillColor: getHeatmapColor(interval),
+        fillOpacity: 0.85,
       }
     }
 
@@ -229,9 +237,7 @@ function App() {
   const [countryMistakes, setCountryMistakes] = useState({});
 
   // Fetch user progress from backend safely on load
-  // Replace your existing useEffect for loading user progress in App.jsx with this:
-
-useEffect(() => {
+  useEffect(() => {
     loadUserProgress(1)
       .then((res) => {
         console.log("RAW BACKEND PROGRESS RESPONSE:", res);
@@ -457,6 +463,22 @@ useEffect(() => {
       setIncorrectCountry(null)
       setScore((previousScore) => previousScore + 1)
 
+      const countryFeature = countries.features.find(
+        (f) => f.properties.ADMIN === countryName
+      )
+      if (countryFeature) {
+        const regionCode = countryFeature.properties.ISO_A2
+        
+        // Calculate quality score based on mistakes for this specific country
+        const mistakes = countryMistakes[countryName] || 0
+        let quality = 5
+        if (mistakes === 1) quality = 4
+        else if (mistakes === 2) quality = 3
+        else if (mistakes >= 3) quality = 2
+
+        saveQuizAttempt(1, regionCode, quality)
+      }
+
       // Remove the correctly identified country from the question pool.
       const updatedRemainingCountries = remainingCountries.filter(
         (feature) => feature.properties.ADMIN !== currentCountry
@@ -468,26 +490,6 @@ useEffect(() => {
       if (updatedRemainingCountries.length === 0) {
         setCurrentCountry(null)
         setFeedback('Quiz complete! You identified every location.')
-
-        updatedCorrectCountries.forEach((name) => {
-          const countryFeature = countries.features.find(
-          (f) => f.properties.ADMIN === name
-          )
-
-          if (countryFeature) {
-            const regionCode = countryFeature.properties.ISO_A2
-      
-            // Calculate quality score based on mistakes for specific country
-            const mistakes = countryMistakes[name] || 0
-            let quality = 5
-            if (mistakes === 1) quality = 4
-            else if (mistakes === 2) quality = 3
-            else if (mistakes >= 3) quality = 2
-
-            saveQuizAttempt(1, regionCode, quality)
-          }
-        })
-
         setCountryMistakes({})
         return
       }
@@ -496,14 +498,43 @@ useEffect(() => {
       const nextCountry = getRandomCountry(updatedRemainingCountries)
       setCurrentCountry(nextCountry.properties.ADMIN)
       setFeedback('')
-    } else {
-      setIncorrectCountry(countryName)
-      setFeedback(`Not quite. You clicked ${countryName}. Try again!`)
 
-      setCountryMistakes((prev) => ({
-        ...prev,
-        [currentCountry]: (prev[currentCountry] || 0) + 1,
-      }))
+    } else {
+      const mistakesSoFar = (countryMistakes[currentCountry] || 0) + 1
+
+      if (mistakesSoFar >= 4) {
+        // 4 attempts exhausted — trigger acknowledgment state (same as skip)
+        setSkippedCountry(currentCountry) // Turns the country orange on the map
+        setIncorrectCountry(null)
+        setAwaitingAcknowledgment(true)
+        setFeedback(`Out of attempts! This is ${currentCountry}. Take a moment to study its location.`)
+
+        // Save quality 1 to database for failing
+        const countryFeature = countries.features.find(
+          (f) => f.properties.ADMIN === currentCountry
+        )
+        if (countryFeature) {
+          const regionCode = countryFeature.properties.ISO_A2
+          saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty
+        }
+
+        // Clear mistake tracking for this country
+        setCountryMistakes((prev) => {
+          const copy = { ...prev }
+          delete copy[currentCountry]
+          return copy
+        })
+
+      } else {
+        // Still have attempts left (1, 2, or 3)
+        setIncorrectCountry(countryName)
+        setFeedback(`Not quite (Attempt ${mistakesSoFar}/4). Try again!`)
+
+        setCountryMistakes((prev) => ({
+          ...prev,
+          [currentCountry]: mistakesSoFar,
+        }))
+      }
     }
   }
 
@@ -528,6 +559,14 @@ useEffect(() => {
     setAwaitingAcknowledgment(true)
     setFeedback(`This is ${currentCountry}. Take a moment to study its location.`)
 
+    const countryFeature = countries.features.find(
+      (f) => f.properties.ADMIN === currentCountry
+    )
+    if (countryFeature) {
+      const regionCode = countryFeature.properties.ISO_A2
+      saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty for skipping
+    }
+
     setCountryMistakes((prev) => ({
       ...prev,
       [currentCountry]: (prev[currentCountry] || 0) + 3,
@@ -538,13 +577,22 @@ useEffect(() => {
   const continueQuiz = () => {
     if (!awaitingAcknowledgment) return
 
-    const otherCountries = remainingCountries.filter(
+    // Permanently remove the skipped/failed country from the remaining pool
+    const updatedRemaining = remainingCountries.filter(
       (feature) => feature.properties.ADMIN !== skippedCountry
     )
+    setRemainingCountries(updatedRemaining)
 
-    const nextCountry = otherCountries.length > 0
-      ? getRandomCountry(otherCountries)
-      : getRandomCountry(remainingCountries)
+    // Check if that was the last country in the quiz
+    if (updatedRemaining.length === 0) {
+      setCurrentCountry(null)
+      setSkippedCountry(null)
+      setAwaitingAcknowledgment(false)
+      setFeedback('Quiz complete! You identified every location.')
+      return
+    }
+
+    const nextCountry = getRandomCountry(updatedRemaining)
 
     setCurrentCountry(nextCountry.properties.ADMIN)
     setSkippedCountry(null)
