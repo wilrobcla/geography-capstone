@@ -38,6 +38,33 @@ function isQuizLocation(feature) {
   return feature.properties.IS_QUIZ_LOCATION !== false
 }
 
+// Locations that remain on the map but are excluded from quizzes.
+const mapOnlyLocations = [
+  'Hong Kong S.A.R.',
+  'Hong Kong SAR',
+  'Macao SAR',
+  'Macao S.A.R',
+  'Siachen Glacier',
+]
+
+// Marks the locations above as map-only.
+function markMapOnlyLocations(data) {
+  return {
+    ...data,
+    features: data.features.map((feature) =>
+      mapOnlyLocations.includes(feature.properties.ADMIN)
+        ? {
+            ...feature,
+            properties: {
+              ...feature.properties,
+              IS_QUIZ_LOCATION: false,
+            },
+          }
+        : feature
+    ),
+  }
+}
+
 function getRandomCountry(countryList) {
   const randomIndex = Math.floor(Math.random() * countryList.length)
   return countryList[randomIndex]
@@ -58,7 +85,12 @@ function WorldMap({
     const countryName = feature.properties.ADMIN
     const featureContinent = getFeatureContinent(feature)
 
-    if (interactive && featureContinent !== selectedContinent) {
+    // Global Quiz keeps every continent normally colored.
+    if (
+      interactive &&
+      selectedContinent !== 'Global' &&
+      featureContinent !== selectedContinent
+    ) {
       return {
         color: '#475569',
         weight: 1,
@@ -153,10 +185,12 @@ function WorldMap({
             })
 
             // Keep the existing quiz click behavior.
+            // Global Quiz allows clicking locations anywhere.
             if (
               interactive &&
               !awaitingAcknowledgment &&
-              featureContinent === selectedContinent &&
+              (selectedContinent === 'Global' ||
+                featureContinent === selectedContinent) &&
               (!quizLocation || !correctCountries.includes(countryName))
             ) {
               layer.on({
@@ -307,7 +341,8 @@ function App() {
       .then((data) => {
         const franceUpdated = splitFrance(data)
         const finalData = splitNetherlands(franceUpdated)
-        setCountries(finalData)
+        const mapOnlyUpdated = markMapOnlyLocations(finalData)
+        setCountries(mapOnlyUpdated)
       })
   }, [])
 
@@ -344,7 +379,8 @@ function App() {
 
     const continentCountries = countries.features.filter(
       (feature) =>
-        getFeatureContinent(feature) === selectedContinent &&
+        (selectedContinent === 'Global' ||
+          getFeatureContinent(feature) === selectedContinent) &&
         isQuizLocation(feature)
     )
 
@@ -501,6 +537,10 @@ function App() {
                     {continent}
                   </button>
                 ))}
+
+                <button onClick={() => openQuiz('Global')}>
+                  Global Quiz
+                </button>
               </div>
             </div>
           </>
@@ -509,7 +549,9 @@ function App() {
             <div className="game-info">
               <h2>{selectedContinent} Quiz</h2>
               <p>
-                Identify the locations in {selectedContinent}.
+                {selectedContinent === 'Global'
+                  ? 'Identify locations around the world.'
+                  : `Identify the locations in ${selectedContinent}.`}
               </p>
 
               <div className="score">
