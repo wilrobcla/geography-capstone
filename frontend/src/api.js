@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://geography-capstone.onrender.com/api';
 
 // 1. Fetch user progress and country mastery records
 export async function loadUserProgress() {

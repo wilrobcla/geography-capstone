@@ -248,11 +248,12 @@ function App() {
 
         const map = {}
         records.forEach((item) => {
-          // Include region_code which matches the SQL query output
           const regionKey = item.region_code || item.region_id || item.country_code || item.code || item.ADMIN;
-          if (regionKey) {
-            map[regionKey] = item
-            map[regionKey.toUpperCase()] = item
+          if (regionKey !== undefined && regionKey !== null) {
+            map[regionKey] = item;
+            if (typeof regionKey === 'string') {
+              map[regionKey.toUpperCase()] = item;
+            }
           }
         })
 
