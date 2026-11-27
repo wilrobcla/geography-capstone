@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, GeoJSON } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
-import { loadUserProgress, saveQuizAttempt } from './api';
+import { loadUserProgress, saveQuizAttempt } from './api'
 
 const continents = [
   'North America',
@@ -15,17 +15,17 @@ const continents = [
 
 const getHeatmapColor = (interval) => {
   if (!interval || interval <= 0) {
-    return '#cbd5e1'; 
+    return '#cbd5e1'
   } else if (interval > 14) {
-    return '#22c55e'; 
+    return '#22c55e'
   } else if (interval > 7) {
-    return '#84cc16'; 
+    return '#84cc16'
   } else if (interval > 3) {
-    return '#eab308'; 
+    return '#eab308'
   } else if (interval > 1) {
-    return '#f97316'; 
+    return '#f97316'
   } else {
-    return '#fa7474'; 
+    return '#f46021'
   }
 }
 
@@ -243,34 +243,32 @@ function App() {
   const [feedback, setFeedback] = useState('')
   const [quizStarted, setQuizStarted] = useState(false)
 
-  const [countryMistakes, setCountryMistakes] = useState({});
+  const [countryMistakes, setCountryMistakes] = useState({})
 
-  // Fetch user progress from backend safely on load
-  useEffect(() => {
+  const fetchUserProgress = () => {
     loadUserProgress(1)
       .then((res) => {
-        console.log("RAW BACKEND PROGRESS RESPONSE:", res);
-
-        // Extract the masteryRecords array from the backend response object
-        const rawData = res?.data || res;
-        const records = rawData?.masteryRecords || (Array.isArray(rawData) ? rawData : Object.values(rawData || {}));
+        const rawData = res?.data || res
+        const records =
+          rawData?.masteryRecords ||
+          (Array.isArray(rawData) ? rawData : Object.values(rawData || {}))
 
         const map = {}
         records.forEach((item) => {
-          const regionKey = item.region_code || item.region_id || item.country_code || item.code || item.ADMIN;
-          if (regionKey !== undefined && regionKey !== null) {
-            map[regionKey] = item;
-            if (typeof regionKey === 'string') {
-              map[regionKey.toUpperCase()] = item;
-            }
+          if (item.region_code) {
+            map[String(item.region_code).toUpperCase()] = item
           }
         })
 
-        console.log("PARSED USER PROGRESS MAP:", map);
         setUserProgressMap(map)
       })
-      .catch((err) => console.error("Error loading progress:", err))
-  }, []);
+      .catch((err) => console.error('Error loading progress:', err))
+  }
+
+  // Fetch user progress from backend safely on load
+  useEffect(() => {
+    fetchUserProgress()
+  }, [])
 
   // Separates French territories and combines Guadeloupe's islands.
   const splitFrance = (data) => {
@@ -409,6 +407,7 @@ function App() {
 
   // Returns the player to the homepage.
   const returnHome = () => {
+    fetchUserProgress()
     setCurrentPage('home')
     setCurrentCountry(null)
     setRemainingCountries([])
