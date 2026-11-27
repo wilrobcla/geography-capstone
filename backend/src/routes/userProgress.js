@@ -14,11 +14,17 @@ router.get('/progress', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-  
     const masteryResult = await pool.query(
-      `SELECT region_id AS region_code, interval, easiness_factor, repetitions, next_review 
-       FROM region_mastery 
-       WHERE user_id = $1`,
+      `SELECT 
+         rm.region_id,
+         r.code AS region_code,
+         rm.interval,
+         rm.easiness_factor,
+         rm.repetitions,
+         rm.next_review
+       FROM region_mastery rm
+       JOIN regions r ON rm.region_id = r.id
+       WHERE rm.user_id = $1`,
       [userId]
     );
 

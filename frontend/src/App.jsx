@@ -93,10 +93,10 @@ function WorldMap({
     const adminName = feature.properties.ADMIN
 
     // Check progress map against ISO_A2, ISO_A3, OR full Admin name case-insensitively
-    const masteryRecord = 
-      userProgressMap[regionCode] || 
-      userProgressMap[regionCode3] || 
-      userProgressMap[adminName] || 
+    const masteryRecord =
+      userProgressMap[regionCode3] ||
+      userProgressMap[regionCode] ||
+      userProgressMap[adminName] ||
       userProgressMap[adminName?.toUpperCase()] ||
       null
 
