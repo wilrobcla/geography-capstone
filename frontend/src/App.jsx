@@ -51,7 +51,16 @@ function getFeatureContinent(feature) {
 
 // Determines whether a location is part of the quiz.
 function isQuizLocation(feature) {
-  return feature.properties.IS_QUIZ_LOCATION !== false
+  if (feature.properties.IS_QUIZ_LOCATION === false) return false
+
+  const codeA2 = String(feature.properties.ISO_A2 ?? '').trim().toUpperCase()
+  const codeA3 = String(feature.properties.ISO_A3 ?? '').trim().toUpperCase()
+
+  if (!codeA2 || codeA2 === '-99' || codeA3 === '-99') {
+    return false
+  }
+
+  return true
 }
 
 function getRandomCountry(countryList) {
@@ -468,16 +477,16 @@ function App() {
         (f) => f.properties.ADMIN === countryName
       )
       if (countryFeature) {
-        const regionCode = countryFeature.properties.ISO_A2
-        
-        // Calculate quality score based on mistakes for this specific country
-        const mistakes = countryMistakes[countryName] || 0
-        let quality = 5
-        if (mistakes === 1) quality = 4
-        else if (mistakes === 2) quality = 3
-        else if (mistakes >= 3) quality = 2
+        const regionCode = String(countryFeature.properties.ISO_A2 ?? '').trim().toUpperCase()
+        if (regionCode && regionCode !== '-99') {
+          const mistakes = countryMistakes[countryName] || 0
+          let quality = 5
+          if (mistakes === 1) quality = 4
+          else if (mistakes === 2) quality = 3
+          else if (mistakes >= 3) quality = 2
 
-        saveQuizAttempt(1, regionCode, quality)
+          saveQuizAttempt(1, regionCode, quality)
+        }
       }
 
       // Remove the correctly identified country from the question pool.
@@ -515,8 +524,10 @@ function App() {
           (f) => f.properties.ADMIN === currentCountry
         )
         if (countryFeature) {
-          const regionCode = countryFeature.properties.ISO_A2
-          saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty
+          const regionCode = String(countryFeature.properties.ISO_A2 ?? '').trim().toUpperCase()
+          if (regionCode && regionCode !== '-99') {
+            saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty
+          }
         }
 
         // Clear mistake tracking for this country
@@ -564,8 +575,10 @@ function App() {
       (f) => f.properties.ADMIN === currentCountry
     )
     if (countryFeature) {
-      const regionCode = countryFeature.properties.ISO_A2
-      saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty for skipping
+      const regionCode = String(countryFeature.properties.ISO_A2 ?? '').trim().toUpperCase()
+      if (regionCode && regionCode !== '-99') {
+        saveQuizAttempt(1, regionCode, 1) // Quality 1 penalty for skipping
+      }
     }
 
     setCountryMistakes((prev) => ({
