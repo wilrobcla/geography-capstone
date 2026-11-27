@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 // Make sure the filename casing matches your file system: regionMastery.js
-const { pool } = require('../backend/src/models/RegionMastery');
+const { pool } = require('../backend/src/models/regionMastery');
 
 async function seedDatabase() {
   const client = await pool.connect();
